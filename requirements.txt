@@ -1,0 +1,12 @@
+PyQt6
+yt-dlp
+youtube-transcript-api
+openai-whisper
+opencv-python
+numpy
+torch
+torchvision
+torchaudio
+ffmpeg-python
+python-slugify
+imageio-ffmpeg
