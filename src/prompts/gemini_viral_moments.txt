@@ -1,0 +1,37 @@
+breakdown video ini temukan momen‑momen terbaik yang cocok dijadikan YouTube Shorts atau TikTok viral.
+
+Untuk setiap momen, gunakan FORMAT PERSIS INI (jangan ubah label‑nya):
+
+CLIP 1
+Start: 00:00:00
+End: 00:00:00
+Title: [judul viral yang menarik, maksimal 60 karakter, to the point]
+Hook: [satu kalimat pembuka yang kuat untuk menghentikan scroll, maksimal 100 karakter]
+Caption: [caption YouTube/TikTok lengkap, 2‑3 kalimat, engaging dan natural]
+Hashtags: #shorts #fyp #indonesia [tambah 5‑8 hashtag relevan sesuai konten]
+Why: [satu kalimat kenapa momen ini cocok jadi Short]
+
+CLIP 2
+Start: 00:00:00
+End: 00:00:00
+Title: …
+Hook: …
+Caption: …
+Hashtags: …
+Why: …
+
+[lanjutkan untuk semua clip]
+
+Aturan:
+- Setiap clip harus berdurasi antara 30 sampai 90 detik
+- Setiap clip harus bisa dipahami sendiri tanpa menonton video lainnya
+- Pilih momen dengan energi tinggi, lucu, mengejutkan, emosional, atau informatif
+- Sebarkan clip dari berbagai bagian video, jangan semua dari awal saja
+- Gunakan format HH:MM:SS untuk timestamp (contoh: 00:05:23 bukan 5:23)
+- Tulis Title, Hook, Caption, dan Hashtags dalam Bahasa Indonesia
+- Video mungkin mengandung bahasa gaul, slang, atau campuran bahasa — tetap pahami konteksnya
+
+Temukan 5 momen terbaik dari video ini.
+
+Video: {url}
+Transcript: {transcript}
