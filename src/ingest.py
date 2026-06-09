@@ -5,17 +5,7 @@ import requests
 import argparse
 from datetime import datetime
 from pathlib import Path
-from dotenv import load_dotenv
 
-# 1. Environment loading
-# Priority: Current directory .env then ~/.hermes/.env
-load_dotenv() # Load from current dir if exists
-ENV_PATH = Path.home() / ".hermes" / ".env"
-if ENV_PATH.exists():
-    load_dotenv(ENV_PATH)
-
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 GEMINI_MODEL = "google/gemini-2.0-flash-001"
 
 def log(message):
@@ -112,13 +102,13 @@ def parse_gemini_text(text):
     clips.sort(key=lambda x: x["start"])
     return clips, warnings
 
-def call_openrouter(prompt):
-    if not OPENROUTER_API_KEY:
-        raise RuntimeError("OPENROUTER_API_KEY is not set. Check your .env file.")
+def call_openrouter(prompt, openrouter_api_key):
+    if not openrouter_api_key:
+        raise RuntimeError("OpenRouter API key not provided.")
 
     log(f"Calling OpenRouter with model {GEMINI_MODEL}...")
     headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Authorization": f"Bearer {openrouter_api_key}",
         "Content-Type": "application/json",
         "HTTP-Referer": "https://github.com/jules-agent", # Required by OpenRouter
         "X-Title": "YouTube Shorts Ingest"
@@ -147,7 +137,7 @@ def call_openrouter(prompt):
     content = result['choices'][0]['message']['content']
     return content
 
-def collect_inputs(url: str, transcript: str = "", gemini_json: str = "") -> dict:
+def collect_inputs(url: str, transcript: str = "", gemini_json: str = "", openrouter_api_key: str = "") -> dict:
     url = url.strip()
     if not re.match(r'^https?://(www\.)?youtube\.com/|youtu\.be/', url):
         raise ValueError(f"Invalid YouTube URL: {url}")
@@ -204,6 +194,9 @@ def collect_inputs(url: str, transcript: str = "", gemini_json: str = "") -> dic
             clips, warnings = parse_gemini_text(raw_text)
     elif transcript.strip():
         log("Transcript provided. Generating clips via Gemini...")
+        if not openrouter_api_key:
+            raise RuntimeError("Provide OpenRouter API key to use Gemini.")
+
         prompt_file = Path(__file__).parent / "prompts" / "gemini_viral_moments.txt"
         if not prompt_file.exists():
             raise RuntimeError(f"Prompt template not found at {prompt_file}")
@@ -212,7 +205,7 @@ def collect_inputs(url: str, transcript: str = "", gemini_json: str = "") -> dic
             template = f.read()
 
         prompt = template.format(url=url, transcript=transcript)
-        gemini_output = call_openrouter(prompt)
+        gemini_output = call_openrouter(prompt, openrouter_api_key)
         clips, warnings = parse_gemini_text(gemini_output)
     else:
         raise RuntimeError("Provide transcript or gemini_result_json")
@@ -224,8 +217,8 @@ def collect_inputs(url: str, transcript: str = "", gemini_json: str = "") -> dic
         "warnings": warnings
     }
 
-def prepare_payload(url, transcript, gemini_json):
-    payload = collect_inputs(url, transcript, gemini_json)
+def prepare_payload(url, transcript="", gemini_json="", openrouter_api_key=""):
+    payload = collect_inputs(url, transcript, gemini_json, openrouter_api_key)
 
     output_dir = Path("output")
     output_dir.mkdir(exist_ok=True, parents=True)
@@ -242,8 +235,20 @@ if __name__ == "__main__":
     parser.add_argument("--url", required=True, help="YouTube video URL")
     parser.add_argument("--transcript", help="Path to raw transcript file")
     parser.add_argument("--gemini_json", help="Path to pre-generated Gemini result text or JSON, or raw text")
+    parser.add_argument("--api_key", help="OpenRouter API Key (optional, can use env OPENROUTER_API_KEY)")
 
     args = parser.parse_args()
+
+    # For CLI convenience, we still allow env loading if available
+    api_key = args.api_key
+    if not api_key:
+        try:
+            from dotenv import load_dotenv
+            load_dotenv()
+            load_dotenv(Path.home() / ".hermes" / ".env")
+        except ImportError:
+            pass
+        api_key = os.getenv("OPENROUTER_API_KEY")
 
     t_text = ""
     if args.transcript:
@@ -263,10 +268,10 @@ if __name__ == "__main__":
             g_text = args.gemini_json
 
     try:
-        result = prepare_payload(args.url, t_text, g_text)
+        result = prepare_payload(args.url, t_text, g_text, api_key)
         log("Ingest complete successfully.")
     except Exception as e:
         log(f"ERROR: {e}")
-        import traceback
+        # import traceback
         # traceback.print_exc()
         exit(1)
