@@ -53,13 +53,7 @@ def cut_clip(source_mp4, start, end, gpu, out_path):
 
     # We'll use re-encoding to ensure the clip starts exactly on the timestamp
     # and has the right duration for subtitles.
-    v_codec = "libx264"
-    if gpu == "nvenc":
-        v_codec = "h264_nvenc"
-    elif gpu == "amf":
-        v_codec = "h264_amf"
-    elif gpu == "qsv":
-        v_codec = "h264_qsv"
+    v_codec = gpu if gpu != "none" else "libx264"
 
     cmd = [
         "ffmpeg", "-y",
@@ -109,7 +103,7 @@ def process_clip(clip_dict, url, gpu_type, whisper_model, language="id"):
 
     # 3. Transcribe
     # For non-NVIDIA, device="cpu" is safer as per user request
-    whisper_device = "cuda" if gpu_type == "nvenc" else "cpu"
+    whisper_device = "cuda" if gpu_type == "h264_nvenc" else "cpu"
     srt_path = transcribe_clip(out_clip, model_size=whisper_model, device=whisper_device, language=language)
 
     return out_clip, srt_path

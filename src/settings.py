@@ -4,10 +4,13 @@ from pathlib import Path
 SETTINGS_FILE = Path("settings.json")
 
 DEFAULT_SETTINGS = {
-    "gpu_type": "none",
+    "provider": "openrouter",
+    "api_key": "",
+    "model": "google/gemini-2.0-flash-001",
+    "endpoint": "",
     "whisper_model": "tiny",
     "language": "id",
-    "openrouter_api_key": ""
+    "gpu_type": "none"
 }
 
 def load_settings():
@@ -18,10 +21,21 @@ def load_settings():
     try:
         with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
             settings = json.load(f)
+
+            # Migration: if old openrouter_api_key exists, move it to api_key
+            if "openrouter_api_key" in settings and not settings.get("api_key"):
+                settings["api_key"] = settings.pop("openrouter_api_key")
+
             # Ensure all default keys exist
+            updated = False
             for key, val in DEFAULT_SETTINGS.items():
                 if key not in settings:
                     settings[key] = val
+                    updated = True
+
+            if updated:
+                save_settings(settings)
+
             return settings
     except Exception:
         return DEFAULT_SETTINGS

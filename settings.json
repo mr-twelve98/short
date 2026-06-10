@@ -1,7 +1,9 @@
 {
-    "gpu_type": "none",
-    "whisper_model": "tiny",
+    "whisper_model": "base",
+    "api_key": "test_key",
+    "provider": "openrouter",
+    "model": "google/gemini-2.0-flash-001",
+    "endpoint": "",
     "language": "id",
-    "openrouter_api_key": "",
-    "test_key": "test_val"
+    "gpu_type": "h264_qsv"
 }
