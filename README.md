@@ -1,72 +1,52 @@
-# YouTube Shorts Ingest Module
+# YouTube Shorts Viral Moments Generator
 
-This module handles the ingestion of YouTube video metadata and transcripts to identify viral moments using Gemini 2.0 Flash via OpenRouter.
+A Python-based tool to automatically identify, cut, and process viral moments from YouTube videos for TikTok and YouTube Shorts.
+
+## Features
+
+- **AI Analysis**: Uses Gemini 2.0 Flash (via OpenRouter) to find the best moments based on a transcript.
+- **Hardware Acceleration**: Detects and uses NVIDIA (nvenc), AMD (amf), or Intel (qsv) GPUs for fast encoding.
+- **Auto-Transcribe**: Generates accurate subtitles using `faster-whisper`.
+- **Layout Engine**: Automatic 9:16 vertical video formatting with blurred background and text overlays.
+- **Interactive GUI**: Review, edit, and approve clips before final rendering.
 
 ## Setup
 
-1. Install dependencies:
+1. **Install FFmpeg & yt-dlp**:
+   Ensure `ffmpeg` and `yt-dlp` are installed and available in your system PATH.
+
+2. **Install Python Dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
 
-2. Configure environment variables in `~/.hermes/.env` or `.env`:
-   ```env
-   OPENROUTER_API_KEY=your_key_here
-   ```
+3. **API Keys**:
+   Get an OpenRouter API key from [openrouter.ai](https://openrouter.ai/).
 
 ## Usage
 
-### CLI
-
-You can run the script directly from the command line:
-
-**Using a transcript file:**
+Run the GUI application:
 ```bash
-python src/ingest.py --url "https://www.youtube.com/watch?v=VIDEO_ID" --transcript path/to/transcript.txt
+python -m src.gui_app
 ```
 
-**Using pre-generated Gemini text:**
-```bash
-python src/ingest.py --url "https://www.youtube.com/watch?v=VIDEO_ID" --gemini_json "CLIP 1\nStart: 00:01:00\n..."
-```
+### Workflow
 
-**Using a JSON file containing clips:**
-```bash
-python src/ingest.py --url "https://www.youtube.com/watch?v=VIDEO_ID" --gemini_json path/to/clips.json
-```
+1. **Settings**: Enter your OpenRouter API Key and click "Detect GPU". Save settings.
+2. **Input**: Paste a YouTube URL and its transcript (from a site like `youtubetotranscript.com`). Click "Run Ingest".
+3. **Review**: See the detected viral clips. You can double-click to edit the titles/hooks or hit "Generate Preview" to check the layout.
+4. **Process**: Select clips you like, hit "Approve", then go to the Process tab and click "Process All Approved".
+5. **Output**: Find your final MP4s and thumbnails in `output/finals/` and `output/thumbs/`.
 
-### Python API
+## Development
 
-```python
-from src.ingest import prepare_payload
+- `src/ingest.py`: Handles AI analysis and prompt logic.
+- `src/video_processor.py`: Manages downloads, cutting, and Whisper transcription.
+- `src/layout_engine.py`: FFmpeg filter builder and rendering logic.
+- `src/gui_app.py`: Tkinter interface.
+- `src/hardware.py`: GPU and tool detection.
+- `src/settings.py`: JSON-based settings storage.
 
-url = "https://www.youtube.com/watch?v=..."
-transcript = "Full transcript text here..."
+## License
 
-result = prepare_payload(url, transcript=transcript)
-print(result["clips"])
-```
-
-## Output
-
-The results are saved to `output/ingest_result.json` in the following format:
-
-```json
-{
-    "url": "...",
-    "transcript": "...",
-    "clips": [
-        {
-            "clip": 1,
-            "start": "00:05:23",
-            "end": "00:06:15",
-            "title": "...",
-            "hook": "...",
-            "caption": "...",
-            "hashtags": ["#shorts", "#fyp"],
-            "why": "..."
-        }
-    ],
-    "warnings": []
-}
-```
+MIT

@@ -1,0 +1,7 @@
+{
+    "gpu_type": "none",
+    "whisper_model": "tiny",
+    "language": "id",
+    "openrouter_api_key": "",
+    "test_key": "test_val"
+}
