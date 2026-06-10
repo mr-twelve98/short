@@ -6,8 +6,6 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
-GEMINI_MODEL = "google/gemini-2.0-flash-001"
-
 def log(message):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}] {message}")
@@ -97,47 +95,140 @@ def parse_gemini_text(text):
         clip_index += 1
 
     if not clips:
-        raise ValueError("No clips found in Gemini output. Ensure the model followed the CLIP 1 format.")
+        raise ValueError("No clips found in AI output. Ensure the model followed the CLIP 1 format.")
 
     clips.sort(key=lambda x: x["start"])
     return clips, warnings
 
-def call_openrouter(prompt, openrouter_api_key):
-    if not openrouter_api_key:
-        raise RuntimeError("OpenRouter API key not provided.")
+def call_ai_api(prompt, provider_config):
+    provider = provider_config.get("provider", "openrouter").lower()
+    api_key = provider_config.get("api_key")
+    model = provider_config.get("model")
+    endpoint = provider_config.get("endpoint")
 
-    log(f"Calling OpenRouter with model {GEMINI_MODEL}...")
-    headers = {
-        "Authorization": f"Bearer {openrouter_api_key}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/jules-agent", # Required by OpenRouter
-        "X-Title": "YouTube Shorts Ingest"
-    }
-    data = {
-        "model": GEMINI_MODEL,
-        "messages": [
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.7,
-        "max_tokens": 3000
-    }
+    if not api_key:
+        raise RuntimeError(f"API key for {provider} not provided.")
+
+    log(f"Calling {provider} with model {model}...")
+
+    headers = {"Content-Type": "application/json"}
+    data = {}
+    url = ""
+
+    if provider == "openrouter":
+        url = "https://openrouter.ai/api/v1/chat/completions"
+        headers["Authorization"] = f"Bearer {api_key}"
+        headers["HTTP-Referer"] = "https://github.com/jules-agent"
+        headers["X-Title"] = "YouTube Shorts Ingest"
+        data = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.7,
+            "max_tokens": 3000
+        }
+    elif provider == "gemini":
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        data = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.7,
+                "maxOutputTokens": 3000
+            }
+        }
+    elif provider == "claude":
+        url = "https://api.anthropic.com/v1/messages"
+        headers["x-api-key"] = api_key
+        headers["anthropic-version"] = "2023-06-01"
+        data = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": 3000,
+            "temperature": 0.7
+        }
+    elif provider == "openai":
+        url = "https://api.openai.com/v1/chat/completions"
+        headers["Authorization"] = f"Bearer {api_key}"
+        data = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.7,
+            "max_tokens": 3000
+        }
+    elif provider == "custom":
+        if not endpoint:
+            raise RuntimeError("Custom endpoint not provided in settings.")
+        url = endpoint
+        headers["Authorization"] = f"Bearer {api_key}"
+        data = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.7,
+            "max_tokens": 3000
+        }
+    else:
+        raise RuntimeError(f"Unknown AI provider: {provider}")
 
     try:
-        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data, timeout=60)
+        response = requests.post(url, headers=headers, json=data, timeout=90)
     except Exception as e:
-        raise RuntimeError(f"Failed to connect to OpenRouter: {e}")
+        raise RuntimeError(f"Failed to connect to {provider}: {e}")
 
     if response.status_code != 200:
-        raise RuntimeError(f"OpenRouter API error ({response.status_code}): {response.text}")
+        raise RuntimeError(f"{provider.capitalize()} API error ({response.status_code}): {response.text}")
 
     result = response.json()
-    if 'choices' not in result or not result['choices']:
-        raise RuntimeError(f"Unexpected OpenRouter response: {json.dumps(result)}")
 
-    content = result['choices'][0]['message']['content']
-    return content
+    try:
+        if provider in ["openrouter", "openai", "custom"]:
+            content = result['choices'][0]['message']['content']
+        elif provider == "gemini":
+            content = result['candidates'][0]['content']['parts'][0]['text']
+        elif provider == "claude":
+            content = result['content'][0]['text']
+        else:
+            content = str(result)
+        return content
+    except (KeyError, IndexError) as e:
+        raise RuntimeError(f"Unexpected {provider} response structure: {json.dumps(result)}")
 
-def collect_inputs(url: str, transcript: str = "", gemini_json: str = "", openrouter_api_key: str = "") -> dict:
+def fetch_available_models(provider_config):
+    provider = provider_config.get("provider", "openrouter").lower()
+    api_key = provider_config.get("api_key")
+
+    if not api_key and provider != "claude":
+        return []
+
+    log(f"Fetching models for {provider}...")
+
+    try:
+        if provider == "openrouter":
+            resp = requests.get("https://openrouter.ai/api/v1/models", timeout=30)
+            if resp.status_code == 200:
+                return [m['id'] for m in resp.json().get('data', [])]
+        elif provider == "openai":
+            headers = {"Authorization": f"Bearer {api_key}"}
+            resp = requests.get("https://api.openai.com/v1/models", headers=headers, timeout=30)
+            if resp.status_code == 200:
+                return [m['id'] for m in resp.json().get('data', [])]
+        elif provider == "gemini":
+            url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+            resp = requests.get(url, timeout=30)
+            if resp.status_code == 200:
+                return [m['name'].replace('models/', '') for m in resp.json().get('models', [])
+                        if 'generateContent' in m.get('supportedGenerationMethods', [])]
+        elif provider == "claude":
+            return [
+                "claude-3-5-sonnet-20240620",
+                "claude-3-opus-20240229",
+                "claude-3-sonnet-20240229",
+                "claude-3-haiku-20240307"
+            ]
+    except Exception as e:
+        log(f"Error fetching models for {provider}: {e}")
+
+    return []
+
+def collect_inputs(url: str, transcript: str = "", gemini_json: str = "", provider_config: dict = None) -> dict:
     url = url.strip()
     if not re.match(r'^https?://(www\.)?youtube\.com/|youtu\.be/', url):
         raise ValueError(f"Invalid YouTube URL: {url}")
@@ -146,12 +237,11 @@ def collect_inputs(url: str, transcript: str = "", gemini_json: str = "", openro
     warnings = []
 
     if gemini_json.strip():
-        log("Gemini result provided by user.")
+        log("Pre-generated result provided by user.")
         raw_text = gemini_json.strip()
-        if raw_text.startswith('{'):
+        if raw_text.startswith('[') or raw_text.startswith('{'):
             try:
                 data = json.loads(raw_text)
-                # If it's a full payload, just take clips
                 if isinstance(data, dict) and "clips" in data:
                     clips_list = data["clips"]
                 elif isinstance(data, list):
@@ -159,12 +249,10 @@ def collect_inputs(url: str, transcript: str = "", gemini_json: str = "", openro
                 else:
                     raise ValueError("Provided JSON does not contain a list of clips.")
 
-                # Normalize and validate provided JSON clips
                 for i, clip in enumerate(clips_list):
                     required = ["start", "end", "title", "hook", "caption", "hashtags", "why"]
                     for field in required:
                         if field not in clip:
-                            # Try case-insensitive
                             found = False
                             for k in clip.keys():
                                 if k.lower() == field:
@@ -178,7 +266,6 @@ def collect_inputs(url: str, transcript: str = "", gemini_json: str = "", openro
                     clip["end"] = parse_timestamp(str(clip["end"]))
                     clip["clip"] = i + 1
 
-                    # Re-check duration
                     duration = get_seconds(clip["end"]) - get_seconds(clip["start"])
                     if duration < 30:
                         warnings.append(f"Clip {i+1} duration {duration}s < 30s")
@@ -190,12 +277,11 @@ def collect_inputs(url: str, transcript: str = "", gemini_json: str = "", openro
             except json.JSONDecodeError as e:
                 raise ValueError(f"Failed to parse gemini_json: {e}")
         else:
-            # It's the "CLIP 1..." text
             clips, warnings = parse_gemini_text(raw_text)
     elif transcript.strip():
-        log("Transcript provided. Generating clips via Gemini...")
-        if not openrouter_api_key:
-            raise RuntimeError("Provide OpenRouter API key to use Gemini.")
+        log("Transcript provided. Generating clips via AI...")
+        if not provider_config:
+            raise RuntimeError("AI provider configuration missing.")
 
         prompt_file = Path(__file__).parent / "prompts" / "gemini_viral_moments.txt"
         if not prompt_file.exists():
@@ -205,8 +291,8 @@ def collect_inputs(url: str, transcript: str = "", gemini_json: str = "", openro
             template = f.read()
 
         prompt = template.format(url=url, transcript=transcript)
-        gemini_output = call_openrouter(prompt, openrouter_api_key)
-        clips, warnings = parse_gemini_text(gemini_output)
+        ai_output = call_ai_api(prompt, provider_config)
+        clips, warnings = parse_gemini_text(ai_output)
     else:
         raise RuntimeError("Provide transcript or gemini_result_json")
 
@@ -217,8 +303,8 @@ def collect_inputs(url: str, transcript: str = "", gemini_json: str = "", openro
         "warnings": warnings
     }
 
-def prepare_payload(url, transcript="", gemini_json="", openrouter_api_key=""):
-    payload = collect_inputs(url, transcript, gemini_json, openrouter_api_key)
+def prepare_payload(url, transcript="", gemini_json="", provider_config=None):
+    payload = collect_inputs(url, transcript, gemini_json, provider_config)
 
     output_dir = Path("output")
     output_dir.mkdir(exist_ok=True, parents=True)
@@ -235,20 +321,21 @@ if __name__ == "__main__":
     parser.add_argument("--url", required=True, help="YouTube video URL")
     parser.add_argument("--transcript", help="Path to raw transcript file")
     parser.add_argument("--gemini_json", help="Path to pre-generated Gemini result text or JSON, or raw text")
-    parser.add_argument("--api_key", help="OpenRouter API Key (optional, can use env OPENROUTER_API_KEY)")
+    parser.add_argument("--api_key", help="API Key (optional, can use env API_KEY)")
+    parser.add_argument("--provider", default="openrouter", help="AI provider")
+    parser.add_argument("--model", default="google/gemini-2.0-flash-001", help="AI model")
 
     args = parser.parse_args()
 
-    # For CLI convenience, we still allow env loading if available
     api_key = args.api_key
     if not api_key:
-        try:
-            from dotenv import load_dotenv
-            load_dotenv()
-            load_dotenv(Path.home() / ".hermes" / ".env")
-        except ImportError:
-            pass
-        api_key = os.getenv("OPENROUTER_API_KEY")
+        api_key = os.getenv("API_KEY") or os.getenv("OPENROUTER_API_KEY")
+
+    provider_config = {
+        "provider": args.provider,
+        "api_key": api_key,
+        "model": args.model
+    }
 
     t_text = ""
     if args.transcript:
@@ -268,10 +355,8 @@ if __name__ == "__main__":
             g_text = args.gemini_json
 
     try:
-        result = prepare_payload(args.url, t_text, g_text, api_key)
+        result = prepare_payload(args.url, t_text, g_text, provider_config)
         log("Ingest complete successfully.")
     except Exception as e:
         log(f"ERROR: {e}")
-        # import traceback
-        # traceback.print_exc()
         exit(1)

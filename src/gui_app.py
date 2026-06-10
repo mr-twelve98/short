@@ -74,10 +74,17 @@ class App(tk.Tk):
         frame = ttk.Frame(self.tab_settings, padding=20)
         frame.pack(fill="both", expand=True)
 
-        ttk.Label(frame, text="OpenRouter API Key:").grid(row=0, column=0, sticky="w", pady=5)
+        # Provider
+        ttk.Label(frame, text="AI Provider:").grid(row=0, column=0, sticky="w", pady=5)
+        self.cmb_provider = ttk.Combobox(frame, values=["openrouter", "gemini", "claude", "openai", "custom"], state="readonly")
+        self.cmb_provider.set(self.settings.get("provider", "openrouter"))
+        self.cmb_provider.grid(row=0, column=1, sticky="w", padx=5)
+
+        # API Key
+        ttk.Label(frame, text="API Key:").grid(row=1, column=0, sticky="w", pady=5)
         self.ent_api_key = ttk.Entry(frame, width=50, show="*")
-        self.ent_api_key.insert(0, self.settings.get("openrouter_api_key", ""))
-        self.ent_api_key.grid(row=0, column=1, sticky="w", padx=5)
+        self.ent_api_key.insert(0, self.settings.get("api_key", ""))
+        self.ent_api_key.grid(row=1, column=1, sticky="w", padx=5)
 
         def toggle_key():
             if self.ent_api_key.cget("show") == "*":
@@ -85,38 +92,76 @@ class App(tk.Tk):
             else:
                 self.ent_api_key.config(show="*")
 
-        ttk.Button(frame, text="Show/Hide", command=toggle_key).grid(row=0, column=2, padx=5)
+        ttk.Button(frame, text="Show/Hide", command=toggle_key).grid(row=1, column=2, padx=5)
 
-        ttk.Label(frame, text="Whisper Model:").grid(row=1, column=0, sticky="w", pady=5)
+        # Model
+        ttk.Label(frame, text="Model:").grid(row=2, column=0, sticky="w", pady=5)
+        self.cmb_model = ttk.Combobox(frame, width=47)
+        self.cmb_model.set(self.settings.get("model", "google/gemini-2.0-flash-001"))
+        self.cmb_model.grid(row=2, column=1, sticky="w", padx=5)
+
+        def refresh_models():
+            config = {
+                "provider": self.cmb_provider.get(),
+                "api_key": self.ent_api_key.get()
+            }
+            self.log(f"Fetching models for {config['provider']}...")
+            models = ingest.fetch_available_models(config)
+            if models:
+                self.cmb_model.config(values=models)
+                self.cmb_model.set(models[0])
+                self.log(f"Fetched {len(models)} models.")
+            else:
+                self.log("No models fetched. Check API key.")
+
+        ttk.Button(frame, text="Refresh Models", command=refresh_models).grid(row=2, column=2, padx=5)
+
+        # Custom Endpoint
+        ttk.Label(frame, text="Custom Endpoint:").grid(row=3, column=0, sticky="w", pady=5)
+        self.ent_endpoint = ttk.Entry(frame, width=50)
+        self.ent_endpoint.insert(0, self.settings.get("endpoint", ""))
+        self.ent_endpoint.grid(row=3, column=1, sticky="w", padx=5)
+
+        # Separator
+        ttk.Separator(frame, orient="horizontal").grid(row=4, column=0, columnspan=3, sticky="ew", pady=10)
+
+        # Whisper Model
+        ttk.Label(frame, text="Whisper Model:").grid(row=5, column=0, sticky="w", pady=5)
         self.cmb_whisper = ttk.Combobox(frame, values=["tiny", "base", "small", "medium"], state="readonly")
         self.cmb_whisper.set(self.settings.get("whisper_model", "tiny"))
-        self.cmb_whisper.grid(row=1, column=1, sticky="w", padx=5)
+        self.cmb_whisper.grid(row=5, column=1, sticky="w", padx=5)
 
-        ttk.Label(frame, text="Language:").grid(row=2, column=0, sticky="w", pady=5)
+        # Language
+        ttk.Label(frame, text="Language:").grid(row=6, column=0, sticky="w", pady=5)
         self.cmb_lang = ttk.Combobox(frame, values=["id", "en"], state="readonly")
         self.cmb_lang.set(self.settings.get("language", "id"))
-        self.cmb_lang.grid(row=2, column=1, sticky="w", padx=5)
+        self.cmb_lang.grid(row=6, column=1, sticky="w", padx=5)
 
-        ttk.Label(frame, text="Detected GPU:").grid(row=3, column=0, sticky="w", pady=5)
+        # GPU Result
+        ttk.Label(frame, text="Detected GPU:").grid(row=7, column=0, sticky="w", pady=5)
         self.lbl_gpu = ttk.Label(frame, text=self.settings.get("gpu_type", "none"))
-        self.lbl_gpu.grid(row=3, column=1, sticky="w", padx=5)
+        self.lbl_gpu.grid(row=7, column=1, sticky="w", padx=5)
 
         def run_gpu_detect():
             gpu = hardware.detect_gpu()
             self.lbl_gpu.config(text=gpu)
             self.log(f"GPU Detection: {gpu}")
 
-        ttk.Button(frame, text="Detect GPU", command=run_gpu_detect).grid(row=3, column=2, padx=5)
+        ttk.Button(frame, text="Detect GPU", command=run_gpu_detect).grid(row=7, column=2, padx=5)
 
+        # Save Button
         def save():
-            self.settings["openrouter_api_key"] = self.ent_api_key.get()
+            self.settings["provider"] = self.cmb_provider.get()
+            self.settings["api_key"] = self.ent_api_key.get()
+            self.settings["model"] = self.cmb_model.get()
+            self.settings["endpoint"] = self.ent_endpoint.get()
             self.settings["whisper_model"] = self.cmb_whisper.get()
             self.settings["language"] = self.cmb_lang.get()
             self.settings["gpu_type"] = self.lbl_gpu.cget("text")
             settings.save_settings(self.settings)
             messagebox.showinfo("Success", "Settings saved!")
 
-        ttk.Button(frame, text="Save Settings", command=save).grid(row=4, column=1, sticky="w", pady=20)
+        ttk.Button(frame, text="Save Settings", command=save).grid(row=8, column=1, sticky="w", pady=20)
 
     # --- Input Tab ---
     def setup_input_tab(self):
@@ -165,10 +210,17 @@ class App(tk.Tk):
         self.btn_run_ingest.config(state="disabled")
         self.log("Starting ingestion process...")
 
+        # Build provider config from current UI/settings
+        provider_config = {
+            "provider": self.cmb_provider.get(),
+            "api_key": self.ent_api_key.get(),
+            "model": self.cmb_model.get(),
+            "endpoint": self.ent_endpoint.get()
+        }
+
         def worker():
             try:
-                api_key = self.ent_api_key.get()
-                result = ingest.collect_inputs(url, transcript, gemini_json, openrouter_api_key=api_key)
+                result = ingest.collect_inputs(url, transcript, gemini_json, provider_config=provider_config)
                 self.ingest_result = result
                 self.after(0, self.on_ingest_done)
             except Exception as e:
@@ -287,7 +339,6 @@ class App(tk.Tk):
                     out_path
                 )
                 self.log(f"Preview ready: {out_path}")
-                # os.startfile(out_path) # Commented for non-Windows testing, but kept for final
                 if hasattr(os, 'startfile'):
                     os.startfile(out_path)
                 else:
@@ -373,7 +424,7 @@ class App(tk.Tk):
                     thumb_path = Path("output/thumbs") / f"thumb_{clip['clip']}_{title_safe}.jpg"
 
                     layout_engine.make_final(
-                        clip_path, "00:00:00", "00:99:99",
+                        clip_path, "00:00:00", "23:59:59", # Corrected timestamp
                         self.settings["gpu_type"], clip["hook"], clip["caption"],
                         final_path, thumb_path, srt_path=srt_path
                     )

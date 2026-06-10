@@ -1,6 +1,6 @@
 {
     "whisper_model": "base",
-    "api_key": "test_key",
+    "api_key": "persisted_key",
     "provider": "openrouter",
     "model": "google/gemini-2.0-flash-001",
     "endpoint": "",

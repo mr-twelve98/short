@@ -71,8 +71,10 @@ def make_preview(source_mp4, start, end, gpu_type, hook, caption, out_path, font
     ]
     _run_ffmpeg(cmd)
 
-def make_final(source_mp4, start, end, gpu_type, hook, caption, out_path, thumb_path, srt_path=None, font_path=None):
-    """Generates high-quality final clip and a thumbnail."""
+def make_final(source_mp4, start, end, gpu_type, hook, caption, out_path, thumb_path, srt_path=None, font_path=None, full_file=False):
+    """Generates high-quality final clip and a thumbnail.
+    If full_file is True, 'end' is ignored for duration but used for thumbnail midpoint if valid.
+    """
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     Path(thumb_path).parent.mkdir(parents=True, exist_ok=True)
@@ -98,7 +100,18 @@ def make_final(source_mp4, start, end, gpu_type, hook, caption, out_path, thumb_
     _run_ffmpeg(cmd)
 
     # Thumbnail midpoint
-    mid_sec = (to_sec(start) + to_sec(end)) / 2
+    try:
+        s_sec = to_sec(start)
+        e_sec = to_sec(end)
+        # If e_sec is very large (dummy), we should use a shorter duration for thumb
+        # For our cut segments, they are already short (30-90s).
+        if e_sec > 3600: # more than an hour
+            mid_sec = s_sec + 2.0
+        else:
+            mid_sec = (s_sec + e_sec) / 2
+    except:
+        mid_sec = 1.0 # fallback
+
     h = int(mid_sec // 3600)
     m = int(mid_sec % 3600 // 60)
     s = mid_sec % 60

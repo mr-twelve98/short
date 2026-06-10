@@ -35,9 +35,7 @@ def download_video(url, out_dir=Path("downloads")):
         get_name_cmd = ["yt-dlp", "--get-filename", "-o", str(out_dir / "%(title)s.%(ext)s"), "--restrict-filenames", url]
         filename = subprocess.check_output(get_name_cmd, text=True).strip()
         # Filename might have .webm but we forced .mp4 merge
-        filename = filename.rsplit('.', 1)[0] + ".mp4"
-
-        return Path(filename)
+        return Path(filename).with_suffix(".mp4")
     except Exception as e:
         print(f"Download error: {e}")
         # Fallback to finding the newest mp4
