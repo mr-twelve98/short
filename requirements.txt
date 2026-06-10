@@ -2,3 +2,5 @@ python-dotenv
 requests
 faster-whisper
 yt-dlp
+opencv-python
+pillow

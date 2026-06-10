@@ -79,13 +79,7 @@ def make_final(source_mp4, start, end, gpu_type, hook, caption, out_path, thumb_
 
     filter_complex = build_filter(gpu_type, hook, caption, srt_path=srt_path, font_path=font_path)
 
-    v_codec = "libx264"
-    if gpu_type == "nvenc":
-        v_codec = "h264_nvenc"
-    elif gpu_type == "amf":
-        v_codec = "h264_amf"
-    elif gpu_type == "qsv":
-        v_codec = "h264_qsv"
+    v_codec = gpu_type if gpu_type != "none" else "libx264"
 
     cmd = [
         "ffmpeg", "-y",
