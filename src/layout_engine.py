@@ -18,7 +18,7 @@ def to_sec(ts):
     if len(parts) == 2: return parts[0]*60 + parts[1]
     return parts[0]
 
-def build_filter(gpu_type, hook, caption, srt_path=None, font_path=None):
+def build_filter(gpu_type, hook, caption, srt_path=None, font_path=None, crop_x=None):
     """Returns the FFmpeg filter-graph string for a 9:16 output (720x1280)."""
     # Escape single quotes and colons for drawtext and subtitles
     def escape_text(t):
@@ -32,8 +32,15 @@ def build_filter(gpu_type, hook, caption, srt_path=None, font_path=None):
 
     # background blur: scale to 720:1280, then blur
     bg = "[0:v]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,boxblur=20[bg]"
-    # foreground scaled to width 720, keeping aspect, then padded to 1280 height
-    fg = "[0:v]scale=720:-2[fg_scaled];[fg_scaled]pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black@0[fg]"
+
+    # foreground:
+    if crop_x is not None:
+        # Smart crop: scale to height 1280 and crop
+        fg = f"[0:v]scale=-1:1280,crop=720:1280:{crop_x}:0[fg]"
+    else:
+        # Legacy/Fallback: scale to height 1280 and center-crop width
+        fg = "[0:v]scale=-1:1280,crop=720:1280:(iw-720)/2:0[fg]"
+
     # overlay
     ov = "[bg][fg]overlay=0:0[vid]"
     # drawtext hook (near top)
@@ -50,10 +57,10 @@ def build_filter(gpu_type, hook, caption, srt_path=None, font_path=None):
         cap_dt  = f"[vid1]drawtext={font}:text='{caption_esc}':x=(w-text_w)/2:y=h-250:fontsize=32:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=10[final]"
         return ";".join([bg, fg, ov, hook_dt, cap_dt])
 
-def make_preview(source_mp4, start, end, gpu_type, hook, caption, out_path, font_path=None):
+def make_preview(source_mp4, start, end, gpu_type, hook, caption, out_path, font_path=None, crop_x=None):
     """Generates a fast, low-res preview."""
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-    filter_complex = build_filter(gpu_type, hook, caption, font_path=font_path)
+    filter_complex = build_filter(gpu_type, hook, caption, font_path=font_path, crop_x=crop_x)
 
     cmd = [
         "ffmpeg", "-y",
@@ -71,7 +78,7 @@ def make_preview(source_mp4, start, end, gpu_type, hook, caption, out_path, font
     ]
     _run_ffmpeg(cmd)
 
-def make_final(source_mp4, start, end, gpu_type, hook, caption, out_path, thumb_path, srt_path=None, font_path=None, full_file=False):
+def make_final(source_mp4, start, end, gpu_type, hook, caption, out_path, thumb_path, srt_path=None, font_path=None, full_file=False, crop_x=None):
     """Generates high-quality final clip and a thumbnail.
     If full_file is True, 'end' is ignored for duration but used for thumbnail midpoint if valid.
     """
@@ -79,7 +86,7 @@ def make_final(source_mp4, start, end, gpu_type, hook, caption, out_path, thumb_
     out_path.parent.mkdir(parents=True, exist_ok=True)
     Path(thumb_path).parent.mkdir(parents=True, exist_ok=True)
 
-    filter_complex = build_filter(gpu_type, hook, caption, srt_path=srt_path, font_path=font_path)
+    filter_complex = build_filter(gpu_type, hook, caption, srt_path=srt_path, font_path=font_path, crop_x=crop_x)
 
     v_codec = gpu_type if gpu_type != "none" else "libx264"
 
