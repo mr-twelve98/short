@@ -13,6 +13,7 @@ from . import ingest
 from . import video_processor
 from . import layout_engine
 from . import smart_crop
+from . import utils
 
 class App(tk.Tk):
     def __init__(self):
@@ -237,7 +238,7 @@ class App(tk.Tk):
             ent = tk.Text(top, height=3) if f in ["hook", "caption"] else ttk.Entry(top, width=50)
             val = clip[f]
             if f in ["hook", "caption"]: ent.insert("1.0", val)
-            else: ent.insert(0, val)
+            else: ent.insert(0, f"{val}")
             ent.pack(padx=10, pady=5); ents[f] = ent
         def save():
             for f in fields: clip[f] = ents[f].get("1.0", "end").strip() if f in ["hook", "caption"] else ents[f].get().strip()
@@ -277,7 +278,7 @@ class App(tk.Tk):
                     clip["hook"], clip["caption"], final_path, thumb_path, srt_path=approved['srt_path'], crop_x=approved['crop_x']
                 )
                 self.log(f"Re-burn complete: {final_path}")
-                os.startfile(final_path)
+                utils.open_file(final_path)
             except Exception as e: self.log(f"Re-burn Error: {e}")
         threading.Thread(target=worker, daemon=True).start()
 
@@ -291,7 +292,7 @@ class App(tk.Tk):
                 out_path = Path("temp") / f"preview_{clip['clip']}.mp4"
                 crop_x = smart_crop.get_smart_crop_params(source, clip["start"], clip["end"])
                 layout_engine.make_preview(source, clip["start"], clip["end"], self.settings["gpu_type"], clip["hook"], clip["caption"], out_path, crop_x=crop_x)
-                os.startfile(out_path)
+                utils.open_file(out_path)
             except Exception as e: self.log(f"Preview Error: {e}")
         threading.Thread(target=worker, daemon=True).start()
 
@@ -347,6 +348,7 @@ class App(tk.Tk):
                     self.after(0, lambda val=i+1: self.progress.configure(value=val))
                 self.after(0, lambda: messagebox.showinfo("Done", "All clips processed!"))
                 self.after(0, lambda: self.btn_process.config(state="normal"))
+                utils.open_file(Path("output/finals"))
             except Exception as e: self.log(f"Final Render Error: {e}")
         threading.Thread(target=worker, daemon=True).start()
 
