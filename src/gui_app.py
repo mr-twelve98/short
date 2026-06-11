@@ -286,12 +286,20 @@ class App(tk.Tk):
         clip = self.get_selected_clip()
         if not clip: return
         self.log(f"Generating preview for clip {clip['clip']}...")
+
+        # Check if we have an existing transcript for this clip
+        approved = next((c for c in self.approved_clips if c['clip_data']['clip'] == clip['clip']), None)
+        srt_path = approved['srt_path'] if approved else None
+
         def worker():
             try:
                 source = video_processor.download_video(self.ingest_result["url"])
                 out_path = Path("temp") / f"preview_{clip['clip']}.mp4"
                 crop_x = smart_crop.get_smart_crop_params(source, clip["start"], clip["end"])
-                layout_engine.make_preview(source, clip["start"], clip["end"], self.settings["gpu_type"], clip["hook"], clip["caption"], out_path, crop_x=crop_x)
+                layout_engine.make_preview(
+                    source, clip["start"], clip["end"], self.settings["gpu_type"],
+                    clip["hook"], clip["caption"], out_path, srt_path=srt_path, crop_x=crop_x
+                )
                 utils.open_file(out_path)
             except Exception as e: self.log(f"Preview Error: {e}")
         threading.Thread(target=worker, daemon=True).start()

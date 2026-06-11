@@ -63,10 +63,10 @@ def build_filter(gpu_type, hook, caption, srt_path=None, font_path=None, crop_x=
         cap_dt  = f"[vid1]drawtext={font}:text='{caption_esc}':x=(w-text_w)/2:y=h-250:fontsize=32:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=10[final]"
         return ";".join([bg, fg, ov, hook_dt, cap_dt])
 
-def make_preview(source_mp4, start, end, gpu_type, hook, caption, out_path, font_path=None, crop_x=None):
-    """Generates a fast, low-res preview."""
+def make_preview(source_mp4, start, end, gpu_type, hook, caption, out_path, srt_path=None, font_path=None, crop_x=None):
+    """Generates a full-length, low-res preview with optional subtitles."""
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-    filter_complex = build_filter(gpu_type, hook, caption, font_path=font_path, crop_x=crop_x)
+    filter_complex = build_filter(gpu_type, hook, caption, srt_path=srt_path, font_path=font_path, crop_x=crop_x)
 
     cmd = [
         "ffmpeg", "-y",
@@ -79,7 +79,6 @@ def make_preview(source_mp4, start, end, gpu_type, hook, caption, out_path, font
         "-c:v", "libx264",
         "-preset", "ultrafast",
         "-crf", "28",
-        "-t", "5",
         str(out_path)
     ]
     _run_ffmpeg(cmd)
