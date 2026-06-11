@@ -35,12 +35,11 @@ def build_filter(gpu_type, hook, caption, srt_path=None, font_path=None, crop_x=
 
     # foreground:
     if crop_x is not None:
-        # Smart crop: crop 720x1280 from original (needs scaling first if not 720 width)
-        # However, for landscape videos, we scale to height 1280 and then crop 720 width.
+        # Smart crop: scale to height 1280 and crop
         fg = f"[0:v]scale=-1:1280,crop=720:1280:{crop_x}:0[fg]"
     else:
-        # Legacy: scaled+centered
-        fg = "[0:v]scale=720:-2[fg_scaled];[fg_scaled]pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black@0[fg]"
+        # Legacy/Fallback: scale to height 1280 and center-crop width
+        fg = "[0:v]scale=-1:1280,crop=720:1280:(iw-720)/2:0[fg]"
 
     # overlay
     ov = "[bg][fg]overlay=0:0[vid]"
