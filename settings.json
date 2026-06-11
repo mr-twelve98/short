@@ -5,5 +5,5 @@
     "model": "google/gemini-2.0-flash-001",
     "endpoint": "",
     "language": "id",
-    "gpu_type": "h264_qsv"
+    "gpu_type": "none"
 }

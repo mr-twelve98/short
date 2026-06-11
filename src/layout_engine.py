@@ -28,7 +28,13 @@ def build_filter(gpu_type, hook, caption, srt_path=None, font_path=None, crop_x=
     # If caption is long, we might want to wrap it or just use the first line
     caption_esc = escape_text(caption.split('\n')[0])
 
-    font = f"fontfile='{font_path}'" if font_path else "font=DejaVuSans"
+    # Font config fix for Windows
+    if font_path:
+        font = f"fontfile='{font_path}'"
+    elif os.name == 'nt':
+        font = "fontfile='C\\:\\\\Windows\\\\Fonts\\\\arial.ttf'"
+    else:
+        font = "font=DejaVuSans"
 
     # background blur: scale to 720:1280, then blur
     bg = "[0:v]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,boxblur=20[bg]"
@@ -125,7 +131,17 @@ def make_final(source_mp4, start, end, gpu_type, hook, caption, out_path, thumb_
     mid_ts = f"{h:02d}:{m:02d}:{s:06.3f}"
 
     hook_esc = hook.replace("'", r"\'").replace(":", r"\:")
-    font = f"fontfile='{font_path}'" if font_path else "font=DejaVuSans"
+    # Font config fix for Windows in thumbnail too
+    if font_path:
+        font = f"fontfile='{font_path}'"
+    elif os.name == 'nt':
+        font = "fontfile='C\\:\\\\Windows\\\\Fonts\\\\arial.ttf'"
+    else:
+        font = "font=DejaVuSans"
+
+    thumb_filter = f"scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,{font}:text='{hook_esc}':x=(w-text_w)/2:y=100:fontsize=40:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=10"
+    # wait, the original thumb_filter was scale=...,crop=...,drawtext=...
+    # I should re-add drawtext=
     thumb_filter = f"scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,drawtext={font}:text='{hook_esc}':x=(w-text_w)/2:y=100:fontsize=40:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=10"
 
     thumb_cmd = [
