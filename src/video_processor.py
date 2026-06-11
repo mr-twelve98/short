@@ -47,10 +47,14 @@ def cut_clip(source_mp4, start, end, gpu, out_path):
         "-to", end,
         "-i", str(source_mp4),
         "-c:v", v_codec,
-        "-c:a", "aac",
-        "-preset", "fast",
-        str(out_path)
+        "-c:a", "aac"
     ]
+
+    # Preset only for CPU libx264
+    if v_codec == "libx264":
+        cmd.extend(["-preset", "fast"])
+
+    cmd.append(str(out_path))
     print(f"Cutting clip: {start} to {end}")
     subprocess.check_call(cmd)
     return out_path

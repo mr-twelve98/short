@@ -104,11 +104,14 @@ def make_final(source_mp4, start, end, gpu_type, hook, caption, out_path, thumb_
         "-map", "[final]",
         "-map", "0:a?",
         "-c:v", v_codec,
-        "-c:a", "aac",
-        "-preset", "fast",
-        "-crf", "18",
-        str(out_path)
+        "-c:a", "aac"
     ]
+
+    # Preset only for CPU libx264
+    if v_codec == "libx264":
+        cmd.extend(["-preset", "fast", "-crf", "18"])
+
+    cmd.append(str(out_path))
     _run_ffmpeg(cmd)
 
     # Thumbnail midpoint
