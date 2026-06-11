@@ -12,14 +12,16 @@ class TestVideoProcessor(unittest.TestCase):
     @patch('src.video_processor.download_video')
     @patch('src.video_processor.cut_clip')
     @patch('src.video_processor.transcribe_clip')
-    def test_process_clip(self, mock_transcribe, mock_cut, mock_download, mock_tools):
+    @patch('src.smart_crop.get_smart_crop_params')
+    def test_process_clip(self, mock_crop, mock_transcribe, mock_cut, mock_download, mock_tools):
         mock_download.return_value = Path("downloads/video.mp4")
+        mock_crop.return_value = 0
         # Simulate file exists check
         with patch.object(Path, 'exists', return_value=True):
             clip_dict = {'clip': 1, 'start': '00:00:10', 'end': '00:00:40'}
             mock_transcribe.return_value = Path("temp/clip_1.srt")
 
-            clip_path, srt_path = process_clip(clip_dict, "http://url", "none", "tiny")
+            clip_path, srt_path, crop_x = process_clip(clip_dict, "http://url", "none", "tiny")
 
             mock_tools.assert_called_once()
             mock_download.assert_called_with("http://url")
@@ -28,6 +30,7 @@ class TestVideoProcessor(unittest.TestCase):
 
             self.assertEqual(clip_path, Path("temp/clip_1.mp4"))
             self.assertEqual(srt_path, Path("temp/clip_1.srt"))
+            self.assertEqual(crop_x, 0)
 
 if __name__ == '__main__':
     unittest.main()
