@@ -5,6 +5,8 @@ import re
 from pathlib import Path
 from faster_whisper import WhisperModel
 from .hardware import ensure_tools, detect_gpu
+from . import transcribe
+from . import smart_crop
 
 def format_timestamp(seconds):
     h = int(seconds // 3600)
@@ -15,9 +17,7 @@ def format_timestamp(seconds):
 
 def download_video(url, out_dir=Path("downloads")):
     out_dir.mkdir(exist_ok=True, parents=True)
-    # --get-filename to see if we already have it
     try:
-        # We use a template that yt-dlp will use
         cmd = [
             "yt-dlp",
             "-f", "bestvideo+bestaudio",
@@ -29,30 +29,18 @@ def download_video(url, out_dir=Path("downloads")):
         print(f"Downloading: {url}")
         subprocess.check_call(cmd)
 
-        # Get the downloaded file path
-        # Note: sorting by mtime might be flaky if multiple downloads happen
-        # Better to ask yt-dlp for the filename it WOULD use
         get_name_cmd = ["yt-dlp", "--get-filename", "-o", str(out_dir / "%(title)s.%(ext)s"), "--restrict-filenames", url]
         filename = subprocess.check_output(get_name_cmd, text=True).strip()
-        # Filename might have .webm but we forced .mp4 merge
         return Path(filename).with_suffix(".mp4")
     except Exception as e:
         print(f"Download error: {e}")
-        # Fallback to finding the newest mp4
         mp4_files = sorted(out_dir.glob("*.mp4"), key=lambda p: p.stat().st_mtime, reverse=True)
         return mp4_files[0] if mp4_files else None
 
 def cut_clip(source_mp4, start, end, gpu, out_path):
-    """Cut segment, using hardware accel if available for re-encoding if needed,
-    but usually just -ss -to is fast if we don't re-encode.
-    However, for precise cuts we might re-encode.
-    """
+    """Cut segment, using hardware accel if available."""
     out_path.parent.mkdir(exist_ok=True, parents=True)
-
-    # We'll use re-encoding to ensure the clip starts exactly on the timestamp
-    # and has the right duration for subtitles.
     v_codec = gpu if gpu != "none" else "libx264"
-
     cmd = [
         "ffmpeg", "-y",
         "-ss", start,
@@ -70,7 +58,6 @@ def cut_clip(source_mp4, start, end, gpu, out_path):
 def transcribe_clip(clip_path, model_size="tiny", device="cpu", language="id"):
     """Transcribes a clip and saves to SRT."""
     print(f"Transcribing {clip_path} with Whisper ({model_size})...")
-    # compute_type="int8" is faster on CPU
     model = WhisperModel(model_size, device=device, compute_type="int8" if device == "cpu" else "float16")
     segments, _ = model.transcribe(str(clip_path), language=language)
 
@@ -82,10 +69,9 @@ def transcribe_clip(clip_path, model_size="tiny", device="cpu", language="id"):
             text = seg.text.strip()
             if text:
                 f.write(f"{i}\n{start_str} --> {end_str}\n{text}\n\n")
-
     return srt_path
 
-def process_clip(clip_dict, url, gpu_type, whisper_model, language="id"):
+def process_clip(clip_dict, url, gpu_type, whisper_model, language="id", youtube_transcript="", provider_config=None):
     ensure_tools()
 
     # 1. Download
@@ -99,9 +85,18 @@ def process_clip(clip_dict, url, gpu_type, whisper_model, language="id"):
     out_clip = temp_dir / f"clip_{clip_id}.mp4"
     cut_clip(source, clip_dict['start'], clip_dict['end'], gpu_type, out_clip)
 
-    # 3. Transcribe
-    # For non-NVIDIA, device="cpu" is safer as per user request
-    whisper_device = "cuda" if gpu_type == "h264_nvenc" else "cpu"
-    srt_path = transcribe_clip(out_clip, model_size=whisper_model, device=whisper_device, language=language)
+    # 3. Smart Crop
+    print(f"Calculating smart crop for clip {clip_id}...")
+    crop_x = smart_crop.get_smart_crop_params(source, clip_dict['start'], clip_dict['end'])
 
-    return out_clip, srt_path
+    # 4. Transcribe
+    if youtube_transcript and provider_config:
+        print(f"Using AI-Merge transcription for clip {clip_id}...")
+        srt_path = transcribe.transcribe_and_merge(
+            out_clip, youtube_transcript, provider_config, clip_id=clip_id, language=language
+        )
+    else:
+        whisper_device = "cuda" if gpu_type == "h264_nvenc" else "cpu"
+        srt_path = transcribe_clip(out_clip, model_size=whisper_model, device=whisper_device, language=language)
+
+    return out_clip, srt_path, crop_x

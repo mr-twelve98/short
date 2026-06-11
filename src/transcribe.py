@@ -5,13 +5,32 @@ from pathlib import Path
 from faster_whisper import WhisperModel
 from . import ingest
 
+def format_timestamp(seconds):
+    h = int(seconds // 3600)
+    m = int(seconds % 3600 // 60)
+    s = int(seconds % 60)
+    ms = int((seconds - int(seconds)) * 1000)
+    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+def json_to_srt(merged_data):
+    """
+    Converts the AI-merge JSON into a standard SRT string.
+    Expects [{"start": float, "end": float, "text": str}, ...]
+    """
+    srt_lines = []
+    for i, segment in enumerate(merged_data, 1):
+        start = format_timestamp(segment["start"])
+        end = format_timestamp(segment["end"])
+        text = segment["text"].strip()
+        srt_lines.append(f"{i}\n{start} --> {end}\n{text}\n\n")
+    return "".join(srt_lines)
+
 def run_whisper_word_level(audio_path, model_size="base", language="id"):
     """
     Runs Whisper to get word-level timestamps.
     Returns a list of dicts: {"word": str, "start": float, "end": float}
     """
     print(f"[Whisper] Loading model {model_size}...")
-    # Using cpu for broader compatibility, can be cuda if nvenc detected in future
     model = WhisperModel(model_size, device="cpu", compute_type="int8")
 
     print(f"[Whisper] Transcribing {audio_path}...")
@@ -39,16 +58,13 @@ def merge_transcripts(whisper_data, youtube_text, provider_config):
     with open(prompt_path, "r", encoding="utf-8") as f:
         prompt_template = f.read()
 
-    # Combine data for LLM
     whisper_json = json.dumps(whisper_data, indent=2)
     full_prompt = f"{prompt_template}\n\nWhisper transcript:\n{whisper_json}\n\nYouTube transcript:\n{youtube_text}"
 
     print(f"[AI-Merge] Calling {provider_config.get('provider')} to merge transcripts...")
     ai_response = ingest.call_ai_api(full_prompt, provider_config)
 
-    # Try to extract JSON if LLM included markdown or text
     try:
-        # Simple regex-less extraction: find first [ and last ]
         start_idx = ai_response.find('[')
         end_idx = ai_response.rfind(']') + 1
         if start_idx != -1 and end_idx > 0:
@@ -64,6 +80,7 @@ def merge_transcripts(whisper_data, youtube_text, provider_config):
 def transcribe_and_merge(audio_path, youtube_transcript, provider_config, clip_id="unknown", language="id"):
     """
     Orchestrates the transcription and AI-merge process.
+    Saves both JSON and SRT versions.
     """
     # 1. Run Whisper
     whisper_data = run_whisper_word_level(audio_path, language=language)
@@ -74,10 +91,14 @@ def transcribe_and_merge(audio_path, youtube_transcript, provider_config, clip_i
     # 3. Save result
     output_dir = Path("output")
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"merged_transcript_{clip_id}.json"
 
-    with open(output_path, "w", encoding="utf-8") as f:
+    json_path = output_dir / f"merged_transcript_{clip_id}.json"
+    with open(json_path, "w", encoding="utf-8") as f:
         json.dump(merged_data, f, indent=4, ensure_ascii=False)
 
-    print(f"[AI-Merge] Saved merged transcript to {output_path}")
-    return output_path
+    srt_path = output_dir / f"merged_transcript_{clip_id}.srt"
+    with open(srt_path, "w", encoding="utf-8") as f:
+        f.write(json_to_srt(merged_data))
+
+    print(f"[AI-Merge] Saved merged transcript to {json_path} and {srt_path}")
+    return srt_path
