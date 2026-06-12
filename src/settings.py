@@ -10,7 +10,8 @@ DEFAULT_SETTINGS = {
     "endpoint": "",
     "whisper_model": "tiny",
     "language": "id",
-    "gpu_type": "none"
+    "gpu_type": "none",
+    "subtitle_style": "Shorts"
 }
 
 def load_settings():

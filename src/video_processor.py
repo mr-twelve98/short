@@ -41,6 +41,10 @@ def cut_clip(source_mp4, start, end, gpu, out_path):
     """Cut segment, using hardware accel if available."""
     out_path.parent.mkdir(exist_ok=True, parents=True)
     v_codec = gpu if gpu != "none" else "libx264"
+
+    from .layout_engine import get_encoder_params
+    enc_params = get_encoder_params(v_codec)
+
     cmd = [
         "ffmpeg", "-y",
         "-ss", start,
@@ -48,7 +52,7 @@ def cut_clip(source_mp4, start, end, gpu, out_path):
         "-i", str(source_mp4),
         "-c:v", v_codec,
         "-c:a", "aac",
-        "-preset", "fast",
+        *enc_params,
         str(out_path)
     ]
     print(f"Cutting clip: {start} to {end}")
