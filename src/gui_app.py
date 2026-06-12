@@ -127,15 +127,19 @@ class App(tk.Tk):
         self.cmb_style.set(self.settings.get("subtitle_style", "Shorts"))
         self.cmb_style.grid(row=7, column=1, sticky="w", padx=5)
 
-        ttk.Label(frame, text="Detected GPU:").grid(row=8, column=0, sticky="w", pady=5)
+        # Metadata Export
+        self.var_burn = tk.BooleanVar(value=self.settings.get("burn_text", True))
+        ttk.Checkbutton(frame, text="Burn Text (Hook/Caption) to Video", variable=self.var_burn).grid(row=8, column=1, sticky="w", pady=5)
+
+        ttk.Label(frame, text="Detected GPU:").grid(row=9, column=0, sticky="w", pady=5)
         self.lbl_gpu = ttk.Label(frame, text=self.settings.get("gpu_type", "none"))
-        self.lbl_gpu.grid(row=8, column=1, sticky="w", padx=5)
+        self.lbl_gpu.grid(row=9, column=1, sticky="w", padx=5)
 
         def run_gpu_detect():
             gpu = hardware.detect_gpu()
             self.lbl_gpu.config(text=gpu)
             self.log(f"GPU Detection: {gpu}")
-        ttk.Button(frame, text="Detect GPU", command=run_gpu_detect).grid(row=8, column=2, padx=5)
+        ttk.Button(frame, text="Detect GPU", command=run_gpu_detect).grid(row=9, column=2, padx=5)
 
         def save():
             self.settings.update({
@@ -146,11 +150,12 @@ class App(tk.Tk):
                 "whisper_model": self.cmb_whisper.get(),
                 "language": self.cmb_lang.get(),
                 "subtitle_style": self.cmb_style.get(),
+                "burn_text": self.var_burn.get(),
                 "gpu_type": self.lbl_gpu.cget("text")
             })
             settings.save_settings(self.settings)
             messagebox.showinfo("Success", "Settings saved!")
-        ttk.Button(frame, text="Save Settings", command=save).grid(row=8, column=1, sticky="w", pady=20)
+        ttk.Button(frame, text="Save Settings", command=save).grid(row=10, column=1, sticky="w", pady=20)
 
     # --- Input Tab ---
     def setup_input_tab(self):
@@ -284,7 +289,8 @@ class App(tk.Tk):
                     approved['out_clip'], "00:00:00", "23:59:59", self.settings["gpu_type"],
                     clip["hook"], clip["caption"], final_path, thumb_path,
                     srt_path=approved['srt_path'], crop_x=approved['crop_x'],
-                    style_name=self.settings.get("subtitle_style", "Shorts")
+                    style_name=self.settings.get("subtitle_style", "Shorts"),
+                    burn_text=self.settings.get("burn_text", True)
                 )
                 self.log(f"Re-burn complete: {final_path}")
                 utils.open_file(final_path)
@@ -308,7 +314,8 @@ class App(tk.Tk):
                 layout_engine.make_preview(
                     source, clip["start"], clip["end"], self.settings["gpu_type"],
                     clip["hook"], clip["caption"], out_path, srt_path=srt_path, crop_x=crop_x,
-                    style_name=self.settings.get("subtitle_style", "Shorts")
+                    style_name=self.settings.get("subtitle_style", "Shorts"),
+                    burn_text=self.settings.get("burn_text", True)
                 )
                 utils.open_file(out_path)
             except Exception as e: self.log(f"Preview Error: {e}")
@@ -363,7 +370,8 @@ class App(tk.Tk):
                         item['out_clip'], "00:00:00", "23:59:59", self.settings["gpu_type"],
                         clip["hook"], clip["caption"], final_path, thumb_path,
                         srt_path=item['srt_path'], crop_x=item['crop_x'],
-                        style_name=self.settings.get("subtitle_style", "Shorts")
+                        style_name=self.settings.get("subtitle_style", "Shorts"),
+                        burn_text=self.settings.get("burn_text", True)
                     )
                     self.after(0, lambda val=i+1: self.progress.configure(value=val))
                 self.after(0, lambda: messagebox.showinfo("Done", "All clips processed!"))

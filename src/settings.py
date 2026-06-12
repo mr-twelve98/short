@@ -11,7 +11,8 @@ DEFAULT_SETTINGS = {
     "whisper_model": "tiny",
     "language": "id",
     "gpu_type": "none",
-    "subtitle_style": "Shorts"
+    "subtitle_style": "Shorts",
+    "burn_text": True
 }
 
 def load_settings():
@@ -23,11 +24,10 @@ def load_settings():
         with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
             settings = json.load(f)
 
-            # Migration: if old openrouter_api_key exists, move it to api_key
+            # Migration
             if "openrouter_api_key" in settings and not settings.get("api_key"):
                 settings["api_key"] = settings.pop("openrouter_api_key")
 
-            # Ensure all default keys exist
             updated = False
             for key, val in DEFAULT_SETTINGS.items():
                 if key not in settings:

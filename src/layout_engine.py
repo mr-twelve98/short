@@ -63,7 +63,7 @@ def to_sec(ts):
     if len(parts) == 2: return parts[0]*60 + parts[1]
     return parts[0]
 
-def build_filter(gpu_type, hook, caption, srt_path=None, font_path=None, crop_x=None, style_name="Shorts"):
+def build_filter(gpu_type, hook, caption, srt_path=None, font_path=None, crop_x=None, style_name="Shorts", burn_text=True):
     """Returns the FFmpeg filter-graph string for a 9:16 output (720x1280)."""
     style = STYLE_CONFIGS.get(style_name, STYLE_CONFIGS["Shorts"])
 
@@ -96,6 +96,10 @@ def build_filter(gpu_type, hook, caption, srt_path=None, font_path=None, crop_x=
     # overlay
     ov = "[bg][fg]overlay=0:0[vid]"
 
+    if not burn_text:
+        # Just return the background + foreground combined, no text
+        return ";".join([bg, fg, ov]) + "[final]"
+
     # drawtext hook (near top)
     box_opt = f":box={style['box']}:boxcolor={style['boxcolor']}" if style['box'] else ""
     hook_dt = f"[vid]drawtext={font}:text='{hook_esc}':x=(w-text_w)/2:y=100:fontsize={style['hook_size']}:fontcolor=white{box_opt}:boxborderw=10[vid1]"
@@ -103,17 +107,16 @@ def build_filter(gpu_type, hook, caption, srt_path=None, font_path=None, crop_x=
     # If we have SRT, we burn it. Otherwise we use the static caption.
     if srt_path and os.path.exists(srt_path):
         srt_esc = str(Path(srt_path).absolute()).replace("\\", "/").replace(":", "\\:")
-        # alignment 10 is middle center, 2 is bottom center
         sub_filter = f"[vid1]subtitles='{srt_esc}':force_style='Alignment={style['alignment']},FontSize={style['sub_size']},OutlineColour=&H80000000,BorderStyle=3'[final]"
         return ";".join([bg, fg, ov, hook_dt, sub_filter])
     else:
         cap_dt  = f"[vid1]drawtext={font}:text='{caption_esc}':x=(w-text_w)/2:y=h-250:fontsize={style['cap_size']}:fontcolor=white{box_opt}:boxborderw=10[final]"
         return ";".join([bg, fg, ov, hook_dt, cap_dt])
 
-def make_preview(source_mp4, start, end, gpu_type, hook, caption, out_path, srt_path=None, font_path=None, crop_x=None, style_name="Shorts"):
+def make_preview(source_mp4, start, end, gpu_type, hook, caption, out_path, srt_path=None, font_path=None, crop_x=None, style_name="Shorts", burn_text=True):
     """Generates a full-length, low-res preview with optional subtitles."""
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-    filter_complex = build_filter(gpu_type, hook, caption, srt_path=srt_path, font_path=font_path, crop_x=crop_x, style_name=style_name)
+    filter_complex = build_filter(gpu_type, hook, caption, srt_path=srt_path, font_path=font_path, crop_x=crop_x, style_name=style_name, burn_text=burn_text)
 
     cmd = [
         "ffmpeg", "-y",
@@ -130,13 +133,13 @@ def make_preview(source_mp4, start, end, gpu_type, hook, caption, out_path, srt_
     ]
     _run_ffmpeg(cmd)
 
-def make_final(source_mp4, start, end, gpu_type, hook, caption, out_path, thumb_path, srt_path=None, font_path=None, full_file=False, crop_x=None, style_name="Shorts"):
+def make_final(source_mp4, start, end, gpu_type, hook, caption, out_path, thumb_path, srt_path=None, font_path=None, full_file=False, crop_x=None, style_name="Shorts", burn_text=True):
     """Generates high-quality final clip and a thumbnail."""
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     Path(thumb_path).parent.mkdir(parents=True, exist_ok=True)
 
-    filter_complex = build_filter(gpu_type, hook, caption, srt_path=srt_path, font_path=font_path, crop_x=crop_x, style_name=style_name)
+    filter_complex = build_filter(gpu_type, hook, caption, srt_path=srt_path, font_path=font_path, crop_x=crop_x, style_name=style_name, burn_text=burn_text)
 
     v_codec = gpu_type if gpu_type != "none" else "libx264"
     enc_params = get_encoder_params(v_codec)
