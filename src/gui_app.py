@@ -121,15 +121,21 @@ class App(tk.Tk):
         self.cmb_lang.set(self.settings.get("language", "id"))
         self.cmb_lang.grid(row=6, column=1, sticky="w", padx=5)
 
-        ttk.Label(frame, text="Detected GPU:").grid(row=7, column=0, sticky="w", pady=5)
+        # Subtitle Style
+        ttk.Label(frame, text="Subtitle Style:").grid(row=7, column=0, sticky="w", pady=5)
+        self.cmb_style = ttk.Combobox(frame, values=["Clean", "Minimal", "Shorts"], state="readonly")
+        self.cmb_style.set(self.settings.get("subtitle_style", "Shorts"))
+        self.cmb_style.grid(row=7, column=1, sticky="w", padx=5)
+
+        ttk.Label(frame, text="Detected GPU:").grid(row=8, column=0, sticky="w", pady=5)
         self.lbl_gpu = ttk.Label(frame, text=self.settings.get("gpu_type", "none"))
-        self.lbl_gpu.grid(row=7, column=1, sticky="w", padx=5)
+        self.lbl_gpu.grid(row=8, column=1, sticky="w", padx=5)
 
         def run_gpu_detect():
             gpu = hardware.detect_gpu()
             self.lbl_gpu.config(text=gpu)
             self.log(f"GPU Detection: {gpu}")
-        ttk.Button(frame, text="Detect GPU", command=run_gpu_detect).grid(row=7, column=2, padx=5)
+        ttk.Button(frame, text="Detect GPU", command=run_gpu_detect).grid(row=8, column=2, padx=5)
 
         def save():
             self.settings.update({
@@ -139,6 +145,7 @@ class App(tk.Tk):
                 "endpoint": self.ent_endpoint.get(),
                 "whisper_model": self.cmb_whisper.get(),
                 "language": self.cmb_lang.get(),
+                "subtitle_style": self.cmb_style.get(),
                 "gpu_type": self.lbl_gpu.cget("text")
             })
             settings.save_settings(self.settings)
@@ -275,7 +282,9 @@ class App(tk.Tk):
                 thumb_path = Path("output/thumbs") / f"thumb_{clip['clip']}_{title_safe}.jpg"
                 layout_engine.make_final(
                     approved['out_clip'], "00:00:00", "23:59:59", self.settings["gpu_type"],
-                    clip["hook"], clip["caption"], final_path, thumb_path, srt_path=approved['srt_path'], crop_x=approved['crop_x']
+                    clip["hook"], clip["caption"], final_path, thumb_path,
+                    srt_path=approved['srt_path'], crop_x=approved['crop_x'],
+                    style_name=self.settings.get("subtitle_style", "Shorts")
                 )
                 self.log(f"Re-burn complete: {final_path}")
                 utils.open_file(final_path)
@@ -298,7 +307,8 @@ class App(tk.Tk):
                 crop_x = smart_crop.get_smart_crop_params(source, clip["start"], clip["end"])
                 layout_engine.make_preview(
                     source, clip["start"], clip["end"], self.settings["gpu_type"],
-                    clip["hook"], clip["caption"], out_path, srt_path=srt_path, crop_x=crop_x
+                    clip["hook"], clip["caption"], out_path, srt_path=srt_path, crop_x=crop_x,
+                    style_name=self.settings.get("subtitle_style", "Shorts")
                 )
                 utils.open_file(out_path)
             except Exception as e: self.log(f"Preview Error: {e}")
@@ -351,7 +361,9 @@ class App(tk.Tk):
                     thumb_path = Path("output/thumbs") / f"thumb_{clip['clip']}_{title_safe}.jpg"
                     layout_engine.make_final(
                         item['out_clip'], "00:00:00", "23:59:59", self.settings["gpu_type"],
-                        clip["hook"], clip["caption"], final_path, thumb_path, srt_path=item['srt_path'], crop_x=item['crop_x']
+                        clip["hook"], clip["caption"], final_path, thumb_path,
+                        srt_path=item['srt_path'], crop_x=item['crop_x'],
+                        style_name=self.settings.get("subtitle_style", "Shorts")
                     )
                     self.after(0, lambda val=i+1: self.progress.configure(value=val))
                 self.after(0, lambda: messagebox.showinfo("Done", "All clips processed!"))
