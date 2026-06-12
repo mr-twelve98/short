@@ -97,7 +97,7 @@ def build_filter(gpu_type, hook, caption, srt_path=None, font_path=None, crop_x=
     ov = "[bg][fg]overlay=0:0[vid]"
 
     # drawtext hook (near top)
-    box_opt = f":box={style['box']}:boxcolor={style['boxcolor']}@0.6" if style['box'] else ""
+    box_opt = f":box={style['box']}:boxcolor={style['boxcolor']}" if style['box'] else ""
     hook_dt = f"[vid]drawtext={font}:text='{hook_esc}':x=(w-text_w)/2:y=100:fontsize={style['hook_size']}:fontcolor=white{box_opt}:boxborderw=10[vid1]"
 
     # If we have SRT, we burn it. Otherwise we use the static caption.
@@ -118,6 +118,7 @@ def make_preview(source_mp4, start, end, gpu_type, hook, caption, out_path, srt_
     cmd = [
         "ffmpeg", "-y",
         "-ss", start,
+        "-to", end,
         "-i", str(source_mp4),
         "-filter_complex", filter_complex,
         "-map", "[final]",
