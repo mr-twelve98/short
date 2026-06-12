@@ -93,6 +93,16 @@ def process_clip(clip_dict, url, gpu_type, whisper_model, language="id", youtube
     print(f"Calculating smart crop for clip {clip_id}...")
     crop_x = smart_crop.get_smart_crop_params(source, clip_dict['start'], clip_dict['end'])
 
+    # 3.5 Metadata Export
+    meta_dir = Path("output/metadata")
+    meta_dir.mkdir(parents=True, exist_ok=True)
+    meta_file = meta_dir / f"clip_{clip_id}_metadata.txt"
+    with open(meta_file, "w", encoding="utf-8") as f:
+        f.write(f"Title: {clip_dict.get('title')}\n")
+        f.write(f"Hook: {clip_dict.get('hook')}\n")
+        f.write(f"Caption: {clip_dict.get('caption')}\n")
+    print(f"Metadata saved to {meta_file}")
+
     # 4. Transcribe
     if youtube_transcript and provider_config:
         print(f"Using AI-Merge transcription for clip {clip_id}...")
