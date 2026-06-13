@@ -94,7 +94,12 @@ class App(tk.Tk):
         self.cmb_model.grid(row=2, column=1, sticky="w", padx=5)
 
         def refresh_models():
-            config = {"provider": self.cmb_provider.get(), "api_key": self.ent_api_key.get()}
+            provider = "custom" if self.var_custom_prov.get() else self.cmb_provider.get()
+            config = {
+                "provider": provider,
+                "api_key": self.ent_api_key.get(),
+                "endpoint": self.ent_endpoint.get()
+            }
             models = ingest.fetch_available_models(config)
             if models:
                 self.cmb_model.config(values=models)
@@ -109,41 +114,48 @@ class App(tk.Tk):
         self.ent_endpoint.insert(0, self.settings.get("endpoint", ""))
         self.ent_endpoint.grid(row=3, column=1, sticky="w", padx=5)
 
-        ttk.Separator(frame, orient="horizontal").grid(row=4, column=0, columnspan=3, sticky="ew", pady=10)
+        self.var_custom_prov = tk.BooleanVar(value=(self.settings.get("provider") == "custom"))
+        def on_custom_toggle():
+            if self.var_custom_prov.get():
+                self.cmb_provider.set("custom")
+        ttk.Checkbutton(frame, text="Use as custom provider", variable=self.var_custom_prov, command=on_custom_toggle).grid(row=4, column=1, sticky="w")
 
-        ttk.Label(frame, text="Whisper Model:").grid(row=5, column=0, sticky="w", pady=5)
+        ttk.Separator(frame, orient="horizontal").grid(row=5, column=0, columnspan=3, sticky="ew", pady=10)
+
+        ttk.Label(frame, text="Whisper Model:").grid(row=6, column=0, sticky="w", pady=5)
         self.cmb_whisper = ttk.Combobox(frame, values=["tiny", "base", "small", "medium"], state="readonly")
         self.cmb_whisper.set(self.settings.get("whisper_model", "tiny"))
-        self.cmb_whisper.grid(row=5, column=1, sticky="w", padx=5)
+        self.cmb_whisper.grid(row=6, column=1, sticky="w", padx=5)
 
-        ttk.Label(frame, text="Language:").grid(row=6, column=0, sticky="w", pady=5)
+        ttk.Label(frame, text="Language:").grid(row=7, column=0, sticky="w", pady=5)
         self.cmb_lang = ttk.Combobox(frame, values=["id", "en"], state="readonly")
         self.cmb_lang.set(self.settings.get("language", "id"))
-        self.cmb_lang.grid(row=6, column=1, sticky="w", padx=5)
+        self.cmb_lang.grid(row=7, column=1, sticky="w", padx=5)
 
         # Subtitle Style
-        ttk.Label(frame, text="Subtitle Style:").grid(row=7, column=0, sticky="w", pady=5)
+        ttk.Label(frame, text="Subtitle Style:").grid(row=8, column=0, sticky="w", pady=5)
         self.cmb_style = ttk.Combobox(frame, values=["Clean", "Minimal", "Shorts"], state="readonly")
         self.cmb_style.set(self.settings.get("subtitle_style", "Shorts"))
-        self.cmb_style.grid(row=7, column=1, sticky="w", padx=5)
+        self.cmb_style.grid(row=8, column=1, sticky="w", padx=5)
 
         # Metadata Export
         self.var_burn = tk.BooleanVar(value=self.settings.get("burn_text", True))
-        ttk.Checkbutton(frame, text="Burn Text (Hook/Caption) to Video", variable=self.var_burn).grid(row=8, column=1, sticky="w", pady=5)
+        ttk.Checkbutton(frame, text="Burn Text (Hook/Caption) to Video", variable=self.var_burn).grid(row=9, column=1, sticky="w", pady=5)
 
-        ttk.Label(frame, text="Detected GPU:").grid(row=9, column=0, sticky="w", pady=5)
+        ttk.Label(frame, text="Detected GPU:").grid(row=10, column=0, sticky="w", pady=5)
         self.lbl_gpu = ttk.Label(frame, text=self.settings.get("gpu_type", "none"))
-        self.lbl_gpu.grid(row=9, column=1, sticky="w", padx=5)
+        self.lbl_gpu.grid(row=10, column=1, sticky="w", padx=5)
 
         def run_gpu_detect():
             gpu = hardware.detect_gpu()
             self.lbl_gpu.config(text=gpu)
             self.log(f"GPU Detection: {gpu}")
-        ttk.Button(frame, text="Detect GPU", command=run_gpu_detect).grid(row=9, column=2, padx=5)
+        ttk.Button(frame, text="Detect GPU", command=run_gpu_detect).grid(row=10, column=2, padx=5)
 
         def save():
+            provider = "custom" if self.var_custom_prov.get() else self.cmb_provider.get()
             self.settings.update({
-                "provider": self.cmb_provider.get(),
+                "provider": provider,
                 "api_key": self.ent_api_key.get(),
                 "model": self.cmb_model.get(),
                 "endpoint": self.ent_endpoint.get(),
@@ -155,7 +167,7 @@ class App(tk.Tk):
             })
             settings.save_settings(self.settings)
             messagebox.showinfo("Success", "Settings saved!")
-        ttk.Button(frame, text="Save Settings", command=save).grid(row=10, column=1, sticky="w", pady=20)
+        ttk.Button(frame, text="Save Settings", command=save).grid(row=11, column=1, sticky="w", pady=20)
 
     # --- Input Tab ---
     def setup_input_tab(self):

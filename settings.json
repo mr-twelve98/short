@@ -1,9 +1,11 @@
 {
     "whisper_model": "base",
-    "api_key": "persisted_key",
-    "provider": "openrouter",
-    "model": "google/gemini-2.0-flash-001",
-    "endpoint": "",
+    "api_key": "<YOUR_KEY>",
+    "provider": "custom",
+    "model": "ag/gemini-3-flash",
+    "endpoint": "http://10.14.254.57:20128/v1",
     "language": "id",
-    "gpu_type": "none"
+    "gpu_type": "none",
+    "subtitle_style": "Shorts",
+    "burn_text": true
 }
