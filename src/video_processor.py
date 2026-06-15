@@ -7,13 +7,7 @@ from faster_whisper import WhisperModel
 from .hardware import ensure_tools, detect_gpu
 from . import transcribe
 from . import smart_crop
-
-def format_timestamp(seconds):
-    h = int(seconds // 3600)
-    m = int(seconds % 3600 // 60)
-    s = int(seconds % 60)
-    ms = int((seconds - int(seconds)) * 1000)
-    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+from .utils import format_timestamp
 
 def download_video(url, out_dir=Path("downloads")):
     out_dir.mkdir(exist_ok=True, parents=True)
@@ -112,5 +106,19 @@ def process_clip(clip_dict, url, gpu_type, whisper_model, language="id", youtube
     else:
         whisper_device = "cuda" if gpu_type == "h264_nvenc" else "cpu"
         srt_path = transcribe_clip(out_clip, model_size=whisper_model, device=whisper_device, language=language)
+
+    # 4.5 Generate ASS (for rich styling like word-chunking)
+    try:
+        from . import layout_engine
+        # Try to load the JSON if it exists (from AI-Merge)
+        json_path = Path("output") / f"merged_transcript_{clip_id}.json"
+        if json_path.exists():
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            ass_path = str(srt_path).replace(".srt", ".ass")
+            layout_engine.write_ass(data, ass_path, style_name=provider_config.get("subtitle_style", "Shorts"))
+            print(f"Rich subtitles saved to {ass_path}")
+    except Exception as e:
+        print(f"Optional ASS generation failed: {e}")
 
     return out_clip, srt_path, crop_x
