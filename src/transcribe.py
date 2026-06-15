@@ -65,13 +65,13 @@ def merge_transcripts(whisper_data, youtube_text, provider_config):
     ai_response = ingest.call_ai_api(full_prompt, provider_config)
 
     try:
-        start_idx = ai_response.find('[')
-        end_idx = ai_response.rfind(']') + 1
-        if start_idx != -1 and end_idx > 0:
-            json_str = ai_response[start_idx:end_idx]
-            return json.loads(json_str)
-        else:
-            return json.loads(ai_response)
+        clean = ai_response.strip()
+        if clean.startswith("```"):
+            clean = clean.split("```", 2)[1]
+            if clean.startswith("json"):
+                clean = clean[4:]
+        clean = clean.strip().rstrip("`").strip()
+        return json.loads(clean)
     except Exception as e:
         print(f"[AI-Merge] Error parsing LLM response: {e}")
         print(f"Raw Response: {ai_response}")
