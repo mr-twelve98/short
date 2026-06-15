@@ -36,8 +36,8 @@ def get_encoder_params(codec):
     Returns valid FFmpeg encoder parameters (preset/quality) for the given codec.
     """
     if codec == "h264_amf":
-        # AMD AMF uses 'quality' and 'rc' usually, but 'speed'/'balanced'/'quality' for presets
-        return ["-usage", "transcoding", "-quality", "speed"]
+        # Use balanced quality and CQP to avoid access violation on AMD iGPUs
+        return ["-usage", "transcoding", "-quality", "balanced", "-rc", "cqp", "-qp_i", "22", "-qp_p", "24"]
     elif codec == "h264_nvenc":
         # NVIDIA NVENC uses p1-p7 presets
         return ["-preset", "p1"]
