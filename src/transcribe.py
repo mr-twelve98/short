@@ -4,13 +4,7 @@ import requests
 from pathlib import Path
 from faster_whisper import WhisperModel
 from . import ingest
-
-def format_timestamp(seconds):
-    h = int(seconds // 3600)
-    m = int(seconds % 3600 // 60)
-    s = int(seconds % 60)
-    ms = int((seconds - int(seconds)) * 1000)
-    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+from .utils import format_timestamp
 
 def json_to_srt(merged_data):
     """

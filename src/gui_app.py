@@ -201,7 +201,8 @@ class App(tk.Tk):
         self.log("Starting ingestion process...")
         provider_config = {
             "provider": self.cmb_provider.get(), "api_key": self.ent_api_key.get(),
-            "model": self.cmb_model.get(), "endpoint": self.ent_endpoint.get()
+            "model": self.cmb_model.get(), "endpoint": self.ent_endpoint.get(),
+            "subtitle_style": self.settings.get("subtitle_style", "Shorts")
         }
         def worker():
             try:
@@ -300,7 +301,7 @@ class App(tk.Tk):
                 layout_engine.make_final(
                     approved['out_clip'], "00:00:00", "23:59:59", self.settings["gpu_type"],
                     clip["hook"], clip["caption"], final_path, thumb_path,
-                    srt_path=approved['srt_path'], crop_x=approved['crop_x'],
+                    sub_path=approved['srt_path'], crop_x=approved['crop_x'],
                     style_name=self.settings.get("subtitle_style", "Shorts"),
                     burn_text=self.settings.get("burn_text", True)
                 )
@@ -325,7 +326,7 @@ class App(tk.Tk):
                 crop_x = smart_crop.get_smart_crop_params(source, clip["start"], clip["end"])
                 layout_engine.make_preview(
                     source, clip["start"], clip["end"], self.settings["gpu_type"],
-                    clip["hook"], clip["caption"], out_path, srt_path=srt_path, crop_x=crop_x,
+                    clip["hook"], clip["caption"], out_path, sub_path=srt_path, crop_x=crop_x,
                     style_name=self.settings.get("subtitle_style", "Shorts"),
                     burn_text=self.settings.get("burn_text", True)
                 )
@@ -339,7 +340,8 @@ class App(tk.Tk):
         self.log(f"Processing clip {clip['clip']}...")
         provider_config = {
             "provider": self.cmb_provider.get(), "api_key": self.ent_api_key.get(),
-            "model": self.cmb_model.get(), "endpoint": self.ent_endpoint.get()
+            "model": self.cmb_model.get(), "endpoint": self.ent_endpoint.get(),
+            "subtitle_style": self.settings.get("subtitle_style", "Shorts")
         }
         def worker():
             try:
@@ -381,7 +383,7 @@ class App(tk.Tk):
                     layout_engine.make_final(
                         item['out_clip'], "00:00:00", "23:59:59", self.settings["gpu_type"],
                         clip["hook"], clip["caption"], final_path, thumb_path,
-                        srt_path=item['srt_path'], crop_x=item['crop_x'],
+                        sub_path=item['srt_path'], crop_x=item['crop_x'],
                         style_name=self.settings.get("subtitle_style", "Shorts"),
                         burn_text=self.settings.get("burn_text", True)
                     )
